@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Coach V15 - Context Last</title>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Workout Coach V15</h1>
+            <p id="current-date"></p>
+            <p id="workout-type"></p>
+            <button id="back-to-current-button" style="display: none; margin-top: 10px;">Back to Today</button>
+        </header>
+
+        <div class="session-container">
+            <div class="session-box last-session">
+                <h2 id="left-panel-title">Last Session</h2>
+                <div id="last-session-info">
+                    <p>Loading last session...</p>
+                </div>
+                <button id="view-prev-button">View/Add Previous Strength</button>
+                <div id="prev-date-selector" style="display: none;">
+                    <label for="prev-date-input">Select Date:</label>
+                    <input type="date" id="prev-date-input">
+                    <button id="load-prev-button">Load Strength Date</button>
+                </div>
+                <div id="progression-chart-container">
+                    <div id="chart-header">
+                        <h3 id="chart-title">Progression Chart</h3>
+                        <div id="chart-toggle-buttons">
+                            <button id="show-double-db-chart-btn" class="active-chart-btn"
+                                title="Show chart for using two identical dumbbells">Double DB</button>
+                            <button id="show-single-db-chart-btn" title="Show chart for using only one dumbbell">Single
+                                DB</button>
+                        </div>
+                    </div>
+                    <table id="progression-chart">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="notes">
+                    <p><strong>Inv:</strong> 8x3<span style="color:var(--color-plate-3)">■</span> 4x2.5<span
+                            style="color:var(--color-plate-2-5)">■</span> 4x1.25<span
+                            style="color:var(--color-plate-1-25)">■</span> + 2x10lb Hex</p>
+                </div>
+            </div>
+
+            <div class="session-box current-session">
+                <h2 id="right-panel-title">Today's Plan</h2>
+                <div id="right-panel-content"> </div>
+                <div id="feedback"></div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
