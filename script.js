@@ -632,103 +632,63 @@ function renderProgressionChart(chartType) {
 }
 
 // Render Last Session Panel V15 - Context Aware *** NEW ***
-function renderLastSessionPanel(todayWorkoutInfo) {
+function renderLastSessionPanel() {
     let lastSessionDateStr = null;
     let lastSessionData = null;
     let title = "Last Session"; // Default title
 
-    if (todayWorkoutInfo.category === "Strength") {
-        // Find last session of the *same type* (Push/Pull/Legs)
-        lastSessionDateStr = findLastSessionDate(
-            currentViewDate,
-            todayWorkoutInfo.type,
-            strengthData
-        );
-        lastSessionData = lastSessionDateStr
-            ? strengthData[lastSessionDateStr]
-            : null;
-        title = lastSessionData
-            ? `Last ${lastSessionData.type} Session`
-            : "No Prior Strength Data";
-    } else if (todayWorkoutInfo.category === "Cardio") {
-        // Find the most recently *completed* cardio session before today
-        const sortedCardioDates = cardioSessions
-            .map((s) => s.date)
-            .sort()
-            .reverse();
-        for (const dateStr of sortedCardioDates) {
-            if (
-                dateStr < getFormattedDate(currentViewDate) &&
-                cardioCompletionStatus[dateStr]
-            ) {
-                lastSessionDateStr = dateStr;
-                break;
-            }
-        }
-        // Find the session details from the cardioSessions array
-        lastSessionData = lastSessionDateStr
-            ? cardioSessions.find((s) => s.date === lastSessionDateStr)
-            : null;
-        title = lastSessionData ? "Last Cardio Session" : "No Prior Cardio Data";
-    } else {
-        // Rest Day - Find the absolute most recent workout (Strength or Completed Cardio)
-        const lastStrengthDate = findLastSessionDate(
-            currentViewDate,
-            null,
-            strengthData,
-            true
-        ); // Ignore type
-        const sortedCardioDates = cardioSessions
-            .map((s) => s.date)
-            .sort()
-            .reverse();
-        let lastCompletedCardioDate = null;
-        for (const dateStr of sortedCardioDates) {
-            if (
-                dateStr < getFormattedDate(currentViewDate) &&
-                cardioCompletionStatus[dateStr]
-            ) {
-                lastCompletedCardioDate = dateStr;
-                break;
-            }
-        }
+    // Find the last strength session
+    const lastStrengthDateStr = findLastSessionDate(
+        currentViewDate,
+        null, // Ignore type
+        strengthData,
+        true // Ignore type
+    );
 
-        if (
-            lastStrengthDate &&
-            (!lastCompletedCardioDate || lastStrengthDate > lastCompletedCardioDate)
-        ) {
-            lastSessionDateStr = lastStrengthDate;
-            lastSessionData = strengthData[lastSessionDateStr];
-            title = `Last Workout (${lastSessionData.type})`;
-        } else if (lastCompletedCardioDate) {
-            lastSessionDateStr = lastCompletedCardioDate;
-            lastSessionData = cardioSessions.find(
-                (s) => s.date === lastSessionDateStr
-            );
-            title = "Last Workout (Cardio)";
-        } else {
-            title = "No Prior Workout Data";
+    // Find the last cardio session
+    const sortedCardioDates = cardioSessions
+        .map((s) => s.date)
+        .sort()
+        .reverse();
+    let lastCardioDateStr = null;
+    for (const dateStr of sortedCardioDates) {
+        if (dateStr < getFormattedDate(currentViewDate) && cardioCompletionStatus[dateStr]) {
+            lastCardioDateStr = dateStr;
+            break;
         }
+    }
+
+    // Determine the most recent session (strength or cardio)
+    if (
+        lastStrengthDateStr &&
+        (!lastCardioDateStr || lastStrengthDateStr > lastCardioDateStr)
+    ) {
+        lastSessionDateStr = lastStrengthDateStr;
+        lastSessionData = strengthData[lastSessionDateStr];
+        title = `Last Strength Session (${lastSessionData.type})`;
+    } else if (lastCardioDateStr) {
+        lastSessionDateStr = lastCardioDateStr;
+        lastSessionData = cardioSessions.find((s) => s.date === lastCardioDateStr);
+        title = "Last Cardio Session";
+    } else {
+        title = "No Prior Workout Data";
     }
 
     // Update the panel title
     leftPanelTitleEl.textContent = title;
 
-    // --- Render the content ---
+    // Render the content
     if (!lastSessionData) {
-        lastSessionInfoEl.innerHTML =
-            "<p>No previous session data found for this type.</p>";
+        lastSessionInfoEl.innerHTML = "<p>No previous session data found.</p>";
         return;
     }
 
-    // Check if it's strength or cardio data based on presence of 'exercises' or 'distance'
     if (lastSessionData.exercises) {
-        // Strength Data
-        let html = `<p style="text-align: center; margin-bottom: 5px;"><strong>${lastSessionData.date}</strong></p>`;
-        const strengthType = lastSessionData.type; // e.g., 'Push'
+        // Render strength session data
+        let html = `<p style="text-align: center; margin-bottom: 5px;"><strong>${lastSessionDateStr}</strong></p>`;
+        const strengthType = lastSessionData.type;
         const originalOrder =
-            STRENGTH_EXERCISES[strengthType] ||
-            Object.keys(lastSessionData.exercises);
+            STRENGTH_EXERCISES[strengthType] || Object.keys(lastSessionData.exercises);
         originalOrder.forEach((exerciseName) => {
             if (!lastSessionData.exercises[exerciseName]) return;
             html += `<div class="exercise"><h5>${exerciseName}</h5>`;
@@ -736,27 +696,22 @@ function renderLastSessionPanel(todayWorkoutInfo) {
                 .map((set, index) => {
                     let setDetails = "";
                     const setData = set || {};
-                    if (TIME_BASED_EXERCISES.includes(exerciseName))
-                        setDetails = `T: ${setData.time ?? "N/A"}s @ ${setData.rpe ?? "N/A"
-                            }`;
-                    else if (REPS_ONLY_EXERCISES.includes(exerciseName))
-                        setDetails = `R: ${setData.reps ?? "N/A"} @ ${setData.rpe ?? "N/A"
-                            }`;
-                    else
-                        setDetails = `W: ${setData.weight ?? "N/A"}kg x ${setData.reps ?? "N/A"
-                            }r @ ${setData.rpe ?? "N/A"}`;
-                    return `<div class="set-info" style="font-size: 0.9em;">S${index + 1
-                        }: ${setDetails}</div>`;
+                    if (TIME_BASED_EXERCISES.includes(exerciseName)) {
+                        setDetails = `T: ${setData.time ?? "N/A"}s @ ${setData.rpe ?? "N/A"}`;
+                    } else if (REPS_ONLY_EXERCISES.includes(exerciseName)) {
+                        setDetails = `R: ${setData.reps ?? "N/A"} @ ${setData.rpe ?? "N/A"}`;
+                    } else {
+                        setDetails = `W: ${setData.weight ?? "N/A"}kg x ${setData.reps ?? "N/A"}r @ ${setData.rpe ?? "N/A"}`;
+                    }
+                    return `<div class="set-info" style="font-size: 0.9em;">S${index + 1}: ${setDetails}</div>`;
                 })
                 .join("");
             html += `</div>`;
         });
         lastSessionInfoEl.innerHTML = html;
     } else if (lastSessionData.distance !== undefined) {
-        // Cardio Data
-        const displayDate = parseDate(
-            lastSessionData.date
-        ).toLocaleDateString("en-US", {
+        // Render cardio session data
+        const displayDate = parseDate(lastSessionData.date).toLocaleDateString("en-US", {
             weekday: "short",
             year: "numeric",
             month: "short",
@@ -765,39 +720,13 @@ function renderLastSessionPanel(todayWorkoutInfo) {
         });
         lastSessionInfoEl.innerHTML = `
             <p style="text-align:center; margin-bottom: 10px;"><strong>${displayDate.toUpperCase()}</strong></p>
-            <p>Distance: <strong>${lastSessionData.distance.toFixed(
-            2
-        )} KM</strong></p>
+            <p>Distance: <strong>${lastSessionData.distance.toFixed(2)} KM</strong></p>
             <p>Target SPM: <strong>${lastSessionData.spm}</strong></p>
             <p>(Marked Complete)</p>
-         `;
+        `;
     } else {
         lastSessionInfoEl.innerHTML = "<p>Could not display last session data.</p>";
     }
-}
-// Helper to find the last session date - Modified for V15
-function findLastSessionDate(
-    currentDate,
-    workoutType,
-    allData,
-    ignoreType = false
-) {
-    let lastDate = null;
-    const sortedDates = Object.keys(allData).sort().reverse(); // Sort descending
-    const todayStr = getFormattedDate(currentDate);
-
-    for (const dateStr of sortedDates) {
-        // Only consider dates *before* the current date being viewed/evaluated
-        if (dateStr < todayStr) {
-            // If ignoring type, just take the first one found.
-            // If workoutType is provided, check for match.
-            if (ignoreType || allData[dateStr]?.type === workoutType) {
-                lastDate = dateStr;
-                break;
-            }
-        }
-    }
-    return lastDate;
 }
 
 // Render Strength Panel V16 - Displays target rep range
@@ -1135,7 +1064,7 @@ function handleViewPrevious() {
     prevDateInput.value = getFormattedDate(yesterday);
 }
 function handleLoadPrevious() {
-  /* ... same ... */ const selectedDateStr = prevDateInput.value;
+/* ... same ... */     const selectedDateStr = prevDateInput.value;
     if (!selectedDateStr) {
         feedbackEl.textContent = "Please select a date.";
         feedbackEl.className = "error";
@@ -1152,21 +1081,35 @@ function handleLoadPrevious() {
         return;
     }
     currentViewDate = selectedDate;
+
+    // Check if it's a strength day
     const strengthWorkoutType = STRENGTH_WORKOUT_SCHEDULE[selectedDate.getDay()];
-    if (!strengthWorkoutType) {
-        rightPanelTitleEl.textContent = `Not a Strength Day (${selectedDateStr})`;
-        rightPanelContentEl.innerHTML =
-            "<p>This was not a scheduled strength day (Push/Pull/Legs).</p>";
+    if (strengthWorkoutType) {
+        const sessionDataForDate = strengthData[selectedDateStr] ?? null;
+        rightPanelTitleEl.textContent = `${strengthWorkoutType} Session (${selectedDateStr})`;
+        renderStrengthPanel(
+            selectedDate,
+            STRENGTH_EXERCISES[strengthWorkoutType],
+            sessionDataForDate,
+            { isPast: true }
+        );
         return;
     }
-    const sessionDataForDate = strengthData[selectedDateStr] ?? null;
-    rightPanelTitleEl.textContent = `${strengthWorkoutType} Session (${selectedDateStr})`;
-    renderStrengthPanel(
-        selectedDate,
-        STRENGTH_EXERCISES[strengthWorkoutType],
-        sessionDataForDate,
-        { isPast: true }
+
+    // Check if it's a cardio day
+    const cardioSessionIndex = cardioSessions.findIndex(
+        (session) => session.date === selectedDateStr
     );
+    if (cardioSessionIndex !== -1) {
+        rightPanelTitleEl.textContent = `Cardio Session (${selectedDateStr})`;
+        renderCardioPanel(cardioSessionIndex);
+        return;
+    }
+
+    // If neither, show a message
+    rightPanelTitleEl.textContent = `No Workout Scheduled (${selectedDateStr})`;
+    rightPanelContentEl.innerHTML =
+        "<p>This date does not have a scheduled strength or cardio session.</p>";
 }
 function switchToCurrentDayView() {
     isViewingPreviousStrength = false;
@@ -1236,7 +1179,20 @@ const SPECIFIC_REP_RANGES = {
 };
 
 // --- Core Logic ---
-// findLastSessionDate() should be here...
+function findLastSessionDate(currentDate, workoutType = null, data, ignoreType = false) {
+    const currentDateStr = getFormattedDate(currentDate);
+    const sortedDates = Object.keys(data).sort().reverse(); // Sort dates in descending order
+
+    for (const dateStr of sortedDates) {
+        if (dateStr >= currentDateStr) continue; // Skip future or current dates
+        const session = data[dateStr];
+        if (ignoreType || session.type === workoutType) {
+            return dateStr; // Return the first matching date
+        }
+    }
+
+    return null; // No matching session found
+}
 
 function getWorkoutInfoForDate(date) {
     const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon... 6=Sat
