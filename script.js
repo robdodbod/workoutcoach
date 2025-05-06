@@ -22,28 +22,27 @@ const HEX_DUMBBELL_WEIGHT_EACH = 4.5;
 const HEX_DUMBBELL_WEIGHT_TOTAL = HEX_DUMBBELL_WEIGHT_EACH * 2;
 const MIN_PLATE_INCREMENT_PER_SIDE = 1.25;
 const MIN_PLATE_INCREMENT_TOTAL = MIN_PLATE_INCREMENT_PER_SIDE * 2;
-const STRENGTH_WORKOUT_SCHEDULE = { 2: "Push", 4: "Pull", 6: "Legs" };
+const STRENGTH_WORKOUT_SCHEDULE = { 
+    2: "Push", // Tuesday
+    4: "Pull", // Thursday
+    6: "Push"  // Saturday
+};
 const STRENGTH_EXERCISES = {
     Push: [
-        "Incline Bench",
-        "Overhead Press",
-        "Chest Fly",
-        "Triceps Extension",
+        "Low Incline Dumbbell Press",
+        "Flat Dumbbell Flys",
+        "Seated Dumbbell OHP",
+        "Lateral Raises",
+        "Dumbbell Extensions",
         "Decline Crunch"
     ],
     Pull: [
-        "Bent Over Row",
-        "Shrug",
-        "Seated Incline Curls",
-        "Lateral Raise",
+        "Dumbbell Rows",
+        "Pullovers",
+        "Rear Delt Flys",
+        "Dumbbell Shrugs",
+        "Incline Dumbbell Curls",
         "Lying Leg Raises"
-    ],
-    Legs: [
-        "Dumbbell Squats",
-        "Romanian Deadlifts",
-        "Pullover",
-        "Standing Calf Raise",
-        "Planks"
     ]
 };
 const REPS_ONLY_EXERCISES = ["Decline Crunch", "Lying Leg Raises"];
@@ -286,152 +285,42 @@ function generateSingleDbWeights() {
 
 // --- Strength Recommendation Logic (V16 - Uses Exercise-Specific Rep Ranges) ---
 function getStrengthRecommendation(exerciseName, lastSetData) {
-    const isSingleDBExercise = SINGLE_DB_EXERCISES.includes(exerciseName);
-    const isWeighted =
-        !REPS_ONLY_EXERCISES.includes(exerciseName) &&
-        !TIME_BASED_EXERCISES.includes(exerciseName);
-
-    // --- Determine Target Rep Range for THIS exercise ---
     const repRange = SPECIFIC_REP_RANGES[exerciseName] || DEFAULT_REP_RANGE;
     const targetMinReps = repRange.min;
     const targetMaxReps = repRange.max;
-    // ---
 
-    if (!isWeighted) {
-        // Handle non-weighted (Use default range for rep target if applicable)
-        if (TIME_BASED_EXERCISES.includes(exerciseName)) {
-            const lastTime = lastSetData?.time;
-            return {
-                weight: null,
-                reps: null,
-                time: lastTime ? lastTime + 5 : 30,
-                platesPerSide: []
-            };
-        } else {
-            const lastReps = lastSetData?.reps;
-            return {
-                weight: null,
-                reps: lastReps ? lastReps + 1 : targetMinReps,
-                time: null,
-                platesPerSide: []
-            };
-        } // Default to min reps of its range
+    if (!lastSetData) {
+        return {
+            weight: HEX_DUMBBELL_WEIGHT_TOTAL, // Default starting weight
+            reps: targetMinReps,
+            rpe: 8
+        };
     }
 
-    const chartData = isSingleDBExercise ? singleDbWeights : doubleDbWeights;
-    const searchKey = isSingleDBExercise ? "perDb" : "total";
-    const chartName = isSingleDBExercise ? "Single DB Chart" : "Double DB Chart";
+    const { reps, rpe, weight } = lastSetData;
 
-    if (chartData.length === 0) {
-        console.error(`${chartName} not generated yet!`);
-        return { weight: null, reps: null, time: null, platesPerSide: [] };
-    }
-
-    let lastWeight = null;
-    if (lastSetData && typeof lastSetData.weight === "number") {
-        lastWeight = lastSetData.weight;
-    }
-    let lastWeightIndex = -1;
-
-    if (
-        lastWeight !== null &&
-        Math.abs(lastWeight - HEX_DUMBBELL_WEIGHT_TOTAL) < FLOAT_TOLERANCE &&
-        !isSingleDBExercise
-    ) {
-    /* ... hex mapping ... */ let closestIndex = 0;
-        let minDist = Infinity;
-        chartData.forEach((step, index) => {
-            const dist = Math.abs(step.total - HEX_DUMBBELL_WEIGHT_TOTAL);
-            if (dist < minDist) {
-                minDist = dist;
-                closestIndex = index;
-            }
-        });
-        lastWeightIndex = closestIndex;
-        console.log(
-            `Mapping last Hex DB weight (${lastWeight}kg) to chart index ${lastWeightIndex} (${chartData[closestIndex].total}kg)`
-        );
-    } else if (lastWeight !== null) {
-    /* ... exact match ... */ lastWeightIndex = chartData.findIndex(
-        (step) => Math.abs(step[searchKey] - lastWeight) < FLOAT_TOLERANCE
-    );
-        console.log(
-            `Searching for ${lastWeight}kg in ${searchKey} column of ${chartName}. Found index: ${lastWeightIndex}`
-        );
-    }
-
-    if (lastWeightIndex === -1) {
-    /* ... default index ... */ console.log(
-        `No valid last weight found for ${exerciseName}. Starting at index 0 of ${chartName}.`
-    );
-        lastWeightIndex = 0;
-        if (!isSingleDBExercise && HEX_DUMBBELL_WEIGHT_TOTAL < chartData[0].total) {
-            console.log(`Defaulting ${exerciseName} to Hex Dumbbells...`);
-            return {
-                weight: HEX_DUMBBELL_WEIGHT_TOTAL,
-                reps: targetMinReps,
-                time: null,
-                platesPerSide: [],
-                isHex: true
-            };
-        }
-    } // Use targetMinReps
-
-    // --- Progression direction logic using exercise-specific ranges ---
-    let indexChange = 0;
-    let recommendedReps = targetMinReps; // Default to min reps for the range
-
-    if (lastSetData) {
-        const { reps, rpe } = lastSetData;
-        if (reps >= targetMaxReps && rpe <= 8) {
-            // Hit TOP of range easily
-            indexChange = 1; // Go up in weight
-            recommendedReps = targetMinReps; // Reset reps to bottom of range
-            console.log(`${exerciseName}: Progressing UP ${chartName} weight`);
-        } else if (reps < targetMinReps && rpe >= 9.5) {
-            // Failed BOTTOM of range at high effort
-            indexChange = -1; // Go down in weight
-            recommendedReps = targetMinReps; // Aim for bottom reps with lighter weight
-            console.log(`${exerciseName}: Regressing DOWN ${chartName} weight`);
-        } else {
-            // Stay at same weight, adjust reps?
-            indexChange = 0;
-            // If easy/mid RPE and not max reps, try adding a rep next time
-            if (reps < targetMaxReps && rpe <= 8.5) {
-                recommendedReps = reps + 1;
-            } else {
-                // Otherwise, stick to same reps or min reps
-                recommendedReps = Math.max(targetMinReps, reps); // Keep current reps or min
-            }
-            console.log(
-                `${exerciseName}: Staying at same ${chartName} step, aiming for ~${recommendedReps} reps`
-            );
-        }
+    if (reps >= targetMaxReps && rpe <= 8) {
+        // Progress to higher weight
+        return {
+            weight: weight + MIN_PLATE_INCREMENT_TOTAL,
+            reps: targetMinReps,
+            rpe: 8
+        };
+    } else if (reps < targetMinReps && rpe >= 9.5) {
+        // Regress to lower weight
+        return {
+            weight: Math.max(weight - MIN_PLATE_INCREMENT_TOTAL, HEX_DUMBBELL_WEIGHT_TOTAL),
+            reps: targetMinReps,
+            rpe: 8
+        };
     } else {
-        // No last set data, default to min reps
-        recommendedReps = targetMinReps;
-        console.log(
-            `${exerciseName}: No last set data, staying at determined index, aiming for ${recommendedReps} reps`
-        );
+        // Stay at the same weight and adjust reps
+        return {
+            weight: weight,
+            reps: Math.min(reps + 1, targetMaxReps),
+            rpe: 8
+        };
     }
-    // --- End Progression Logic ---
-
-    let newIndex = lastWeightIndex + indexChange;
-    newIndex = Math.max(0, Math.min(newIndex, chartData.length - 1));
-
-    const recommendedWeightInfo = chartData[newIndex];
-    const recommendedWeight = recommendedWeightInfo[searchKey];
-
-    console.log(
-        `${exerciseName}: Recommended Index: ${newIndex}, Weight: ${recommendedWeight}kg (${searchKey}), Reps: ${recommendedReps}`
-    );
-    return {
-        weight: recommendedWeight,
-        reps: recommendedReps,
-        time: null,
-        platesPerSide: recommendedWeightInfo.platesPerSide,
-        isHex: false
-    };
 }
 
 // --- Strength Sequencing Logic (Unchanged) ---
@@ -1216,79 +1105,13 @@ function getWorkoutInfoForDate(date) {
 function initializeAppUI(dateToShow) {
     dateToShow.setHours(0, 0, 0, 0);
     currentViewDate = dateToShow;
-    // --- Keep retro strength button visible REGARDLESS of today's type ---
-    // isViewingPreviousStrength = false; // Reset mode only when switching explicitly
-    // prevDateSelectorDiv.style.display = 'none'; // Handled by toggle functions now
-    // viewPrevButton.style.display = 'inline-block'; // Always show this
-    // backToCurrentButton.style.display = 'none'; // Hide this initially
-    // ---
-    feedbackEl.textContent = "";
-    feedbackEl.className = "";
+
     currentDateEl.textContent = `Date: ${dateToShow.toDateString()}`;
     const workoutInfo = getWorkoutInfoForDate(dateToShow);
     workoutTypeEl.textContent = `Type: ${workoutInfo.type}`;
 
-    // Always render the last STRENGTH session panel on the left
-    // Render Last Strength Session Panel V17 - Sets title
-    function renderLastStrengthSession() {
-        const lastSessionDateStr = findLastSessionDate(
-            new Date(),
-            null,
-            strengthData,
-            true
-        ); // Find last strength session date regardless of type
-        const lastSessionData = lastSessionDateStr
-            ? strengthData[lastSessionDateStr]
-            : null;
-        let title = "Last Strength Session"; // Default title
-
-        if (!lastSessionData || !lastSessionData.exercises) {
-            lastSessionInfoEl.innerHTML = "<p>No previous strength data.</p>";
-            title = "Strength History"; // More generic title if empty
-        } else {
-            // Display logic similar to V9/V10 but simplified
-            title = `Last Strength (${lastSessionData.type} - ${lastSessionData.date})`; // More specific title
-            let html = ""; // Start empty, only add if data exists
-            const strengthType = lastSessionData.type; // e.g., 'Push'
-            const originalOrder =
-                STRENGTH_EXERCISES[strengthType] ||
-                Object.keys(lastSessionData.exercises);
-            originalOrder.forEach((exerciseName) => {
-                if (!lastSessionData.exercises[exerciseName]) return;
-                html += `<div class="exercise"><h5>${exerciseName}</h5>`; // Smaller display
-                html += lastSessionData.exercises[exerciseName]
-                    .map((set, index) => {
-                        let setDetails = "";
-                        const setData = set || {};
-                        if (TIME_BASED_EXERCISES.includes(exerciseName)) {
-                            setDetails = `T: ${setData.time ?? "N/A"}s @ ${setData.rpe ?? "N/A"
-                                }`;
-                        } else if (REPS_ONLY_EXERCISES.includes(exerciseName)) {
-                            setDetails = `R: ${setData.reps ?? "N/A"} @ ${setData.rpe ?? "N/A"
-                                }`;
-                        } else {
-                            setDetails = `W: ${setData.weight ?? "N/A"}kg x ${setData.reps ?? "N/A"
-                                }r @ ${setData.rpe ?? "N/A"}`;
-                        }
-                        return `<div class="set-info" style="font-size: 0.9em;">S${index + 1
-                            }: ${setDetails}</div>`;
-                    })
-                    .join("");
-                html += `</div>`;
-            });
-            lastSessionInfoEl.innerHTML = html;
-        }
-        // Update the panel title
-        leftPanelTitleEl.textContent = title;
-    }
-
-    rightPanelContentEl.innerHTML = ""; // Clear right panel
-
-    // --- Render Right Panel based on Category ---
     if (workoutInfo.category === "Strength") {
         rightPanelTitleEl.textContent = `${workoutInfo.type} Session`;
-        // Show strength retro button (already visible)
-        // viewPrevButton.style.display = 'inline-block';
         const currentRecommendations = {};
         workoutInfo.exercises.forEach((exName) => {
             const lastSet =
@@ -1307,8 +1130,6 @@ function initializeAppUI(dateToShow) {
         renderStrengthPanel(dateToShow, optimalSequence, null, { isPast: false });
     } else if (workoutInfo.category === "Cardio") {
         rightPanelTitleEl.textContent = `Cardio Session`;
-        // Hide strength retro button logic is handled within its own toggle now
-        // viewPrevButton.style.display = 'none';
         const dateStr = getFormattedDate(dateToShow);
         const sessionIndex = cardioSessions.findIndex((s) => s.date === dateStr);
         if (sessionIndex !== -1) {
@@ -1318,10 +1139,7 @@ function initializeAppUI(dateToShow) {
                 "<p>Error: Cardio session not found for this date.</p>";
         }
     } else {
-        // Rest Day
         rightPanelTitleEl.textContent = "Rest Day";
-        // Hide strength retro button logic is handled within its own toggle now
-        // viewPrevButton.style.display = 'none';
         rightPanelContentEl.innerHTML =
             '<p style="text-align: center; margin-top: 50px; font-size: 1.2em;">Enjoy your rest!</p>';
     }

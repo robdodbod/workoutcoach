@@ -86,27 +86,25 @@ header p {
 
 /* --- Buttons (V10 Style) --- */
 button {
-    padding: 8px 12px;
-    font-size: 0.95em;
-    border-radius: 4px;
+    padding: 10px 15px;
+    font-size: 1em;
+    border-radius: 5px;
     cursor: pointer;
     border: 1px solid transparent;
     background-color: var(--color-button-bg);
     color: var(--color-button-text);
-    margin: 5px 5px 5px 0;
+    margin: 5px;
     transition: background-color 0.2s ease, opacity 0.2s ease;
 }
 
 button:hover:not(:disabled) {
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
 button:disabled {
     background-color: var(--color-button-disabled-bg);
-    border-color: var(--color-button-disabled-border);
     color: var(--color-button-disabled-text);
     cursor: not-allowed;
-    opacity: 0.7;
 }
 
 /* Specific Button Colors */
