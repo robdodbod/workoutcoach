@@ -22,7 +22,7 @@ const HEX_DUMBBELL_WEIGHT_EACH = 4.5;
 const HEX_DUMBBELL_WEIGHT_TOTAL = HEX_DUMBBELL_WEIGHT_EACH * 2;
 const MIN_PLATE_INCREMENT_PER_SIDE = 1.25;
 const MIN_PLATE_INCREMENT_TOTAL = MIN_PLATE_INCREMENT_PER_SIDE * 2;
-const STRENGTH_WORKOUT_SCHEDULE = { 
+const STRENGTH_WORKOUT_SCHEDULE = {
     2: "Push", // Tuesday
     4: "Pull", // Thursday
     6: "Push"  // Saturday
@@ -185,34 +185,27 @@ function formatDate(date) {
 
 // --- Generate Weights Functions (Unchanged) ---
 function generateDoubleDbWeights() {
-  /* ... same ... */ const possibleWeightsPerSide = new Map();
+    const possibleWeightsPerSide = new Map();
     const plateTypes = PLATE_VALUES_DESC;
     const maxCounts = PLATES_PER_SIDE_STRICT;
+
     function findCombinations(plateIndex, currentWeight, currentPlateCombo) {
         const weightKey = parseFloat(currentWeight.toFixed(3));
         if (weightKey >= MIN_PLATE_INCREMENT_PER_SIDE) {
             if (
                 !possibleWeightsPerSide.has(weightKey) ||
-                possibleWeightsPerSide.get(weightKey).plates.length >
-                currentPlateCombo.length
+                possibleWeightsPerSide.get(weightKey).plates.length > currentPlateCombo.length
             ) {
                 possibleWeightsPerSide.set(weightKey, {
                     weight: weightKey,
                     plates: [...currentPlateCombo].sort((a, b) => b - a)
                 });
             }
-        } else if (weightKey === 0) {
-            if (!possibleWeightsPerSide.has(weightKey)) {
-                possibleWeightsPerSide.set(weightKey, {
-                    weight: weightKey,
-                    plates: []
-                });
-            }
         }
         if (plateIndex >= plateTypes.length) return;
+
         const currentPlateValue = plateTypes[plateIndex];
-        const currentPlateKey = String(currentPlateValue);
-        const maxCountForPlate = maxCounts[currentPlateKey];
+        const maxCountForPlate = maxCounts[currentPlateValue];
         for (let count = 0; count <= maxCountForPlate; count++) {
             const nextWeight = currentWeight + count * currentPlateValue;
             if (nextWeight > MAX_WEIGHT_PER_SIDE_STRICT + FLOAT_TOLERANCE) break;
@@ -221,16 +214,15 @@ function generateDoubleDbWeights() {
             for (let i = 0; i < count; i++) currentPlateCombo.pop();
         }
     }
+
     findCombinations(0, 0, []);
     const finalWeights = [];
     for (const [weightKey, data] of possibleWeightsPerSide.entries()) {
-        if (data.weight >= MIN_PLATE_INCREMENT_PER_SIDE) {
-            finalWeights.push({
-                total: data.weight * 4,
-                perDb: data.weight * 2,
-                platesPerSide: data.plates
-            });
-        }
+        finalWeights.push({
+            total: data.weight * 4,
+            perDb: data.weight * 2,
+            platesPerSide: data.plates
+        });
     }
     console.log("Generated Double DB Weights:", finalWeights);
     return finalWeights.sort((a, b) => a.total - b.total);
@@ -343,59 +335,75 @@ function calculateStrengthTransitionCost(rec1, rec2) {
     return cost;
 }
 function getOptimalStrengthSequence(exerciseNames, recommendations) {
-  /* ... same ... */ const weightedExercises = exerciseNames
+    const weightedExercises = exerciseNames
         .filter(
             (name) =>
                 recommendations[name] &&
                 typeof recommendations[name].weight === "number" &&
                 recommendations[name].weight > 0
         )
-        .map((name) => ({ exerciseName: name, ...recommendations[name] }));
+        .map((name) => ({
+            exerciseName: name,
+            ...recommendations[name],
+            platesPerSide: recommendations[name].platesPerSide || [] // Ensure platesPerSide is defined
+        }));
+
     const nonWeightedExercises = exerciseNames.filter(
         (name) =>
             !recommendations[name] ||
             typeof recommendations[name].weight !== "number" ||
             recommendations[name].weight <= 0
     );
-    if (weightedExercises.length <= 1)
+
+    if (weightedExercises.length <= 1) {
         return [
             ...weightedExercises.map((e) => e.exerciseName),
             ...nonWeightedExercises
         ];
+    }
+
     let bestSequence = [...weightedExercises];
     let minTotalCost = Infinity;
     const permutations = getPermutations(weightedExercises);
+
     console.log(
         `Evaluating ${permutations.length} strength sequence permutations...`
     );
+
     permutations.forEach((sequence) => {
         let currentTotalCost = 0;
+
         const firstRec = sequence[0];
         currentTotalCost += firstRec.isHex
             ? 0
             : firstRec.platesPerSide.length *
-            (SINGLE_DB_EXERCISES.includes(firstRec.exerciseName) ? 2 : 4);
+              (SINGLE_DB_EXERCISES.includes(firstRec.exerciseName) ? 2 : 4);
+
         for (let i = 0; i < sequence.length - 1; i++) {
             currentTotalCost += calculateStrengthTransitionCost(
                 sequence[i],
                 sequence[i + 1]
             );
         }
+
         const lastRec = sequence[sequence.length - 1];
         currentTotalCost += lastRec.isHex
             ? 0
             : lastRec.platesPerSide.length *
-            (SINGLE_DB_EXERCISES.includes(lastRec.exerciseName) ? 2 : 4);
+              (SINGLE_DB_EXERCISES.includes(lastRec.exerciseName) ? 2 : 4);
+
         if (currentTotalCost < minTotalCost) {
             minTotalCost = currentTotalCost;
             bestSequence = [...sequence];
         }
     });
+
     console.log(
         `Optimal strength sequence found with cost ${minTotalCost}: ${bestSequence
             .map((e) => e.exerciseName)
             .join(", ")}`
     );
+
     return [...bestSequence.map((e) => e.exerciseName), ...nonWeightedExercises];
 }
 
@@ -484,27 +492,31 @@ function renderPlateVisualizationHTML(weightPerDb, platesPerSide = null) {
     };
     const leftPlatesHtml = plates.map(plateHtml).join("");
     const rightPlatesHtml = [...plates].reverse().map(plateHtml).join("");
-    return `<div class="plate-visualization" style="visibility: visible !important; display: flex !important;" title="Dumbbell Loadout: ${weightPerDb.toFixed(
+    return `<div class="plate-visualization" style="visibility: visible !important; display: flex !重要;" title="Dumbbell Loadout: ${weightPerDb.toFixed(
         2
     )}kg"> ${leftPlatesHtml} <div class="dumbbell-handle"></div> ${rightPlatesHtml} </div>`;
 }
 
 // Render Chart (Unchanged)
 function renderProgressionChart(chartType) {
-  /* ... same ... */ const tableHead = progressionChartTable.querySelector(
-    "thead"
-);
+    console.log("Switching chart to:", chartType);
+    const tableHead = progressionChartTable.querySelector("thead");
     const tableBody = progressionChartTable.querySelector("tbody");
     tableHead.innerHTML = "";
     tableBody.innerHTML = "";
+
     const data = chartType === "single" ? singleDbWeights : doubleDbWeights;
     const isSingle = chartType === "single";
+
+    // Add table headers
     const headerRow = tableHead.insertRow();
     if (!isSingle) {
         headerRow.insertCell().textContent = "Total (kg)";
     }
     headerRow.insertCell().textContent = "Per DB (kg)";
     headerRow.insertCell().textContent = "Loadout (Per DB)";
+
+    // Add table rows
     data.forEach((weightInfo) => {
         const row = tableBody.insertRow();
         if (!isSingle) {
@@ -518,6 +530,8 @@ function renderProgressionChart(chartType) {
             weightInfo.platesPerSide
         );
     });
+
+    console.log("Chart Data:", data);
 }
 
 // Render Last Session Panel V15 - Context Aware *** NEW ***
@@ -750,10 +764,10 @@ function renderStrengthPanel(
         strengthHTML += `</div>`;
     });
     strengthHTML += `<button type="button" id="save-button">${isPast
-            ? sessionData
-                ? "Update Past Strength"
-                : "Save Past Strength"
-            : "Save Strength Session"
+        ? sessionData
+            ? "Update Past Strength"
+            : "Save Past Strength"
+        : "Save Strength Session"
         }</button></form>`;
     rightPanelContentEl.innerHTML = strengthHTML;
     const saveBtn = document.getElementById("save-button");
@@ -1043,13 +1057,14 @@ function handleCardioNext() {
     }
 }
 function displayChart(chartType) {
-  /* ... same ... */ console.log("Switching chart to:", chartType);
+    console.log("Switching chart to:", chartType);
     currentChartType = chartType;
     chartTitleEl.textContent =
         chartType === "single"
             ? "Progression Chart (Single DB)"
             : "Progression Chart (Double DB)";
     renderProgressionChart(chartType);
+
     if (chartType === "single") {
         showSingleDbBtn.classList.add("active-chart-btn");
         showDoubleDbBtn.classList.remove("active-chart-btn");
