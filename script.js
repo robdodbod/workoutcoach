@@ -23,8 +23,8 @@ const HEX_DUMBBELL_WEIGHT_TOTAL = HEX_DUMBBELL_WEIGHT_EACH * 2;
 const MIN_PLATE_INCREMENT_PER_SIDE = 1.25;
 const MIN_PLATE_INCREMENT_TOTAL = MIN_PLATE_INCREMENT_PER_SIDE * 2;
 const STRENGTH_WORKOUT_SCHEDULE = {
-    2: "Push", // Tuesday
-    4: "Pull", // Thursday
+    2: "Pull", // Tuesday (May 6)
+    4: "Push", // Thursday
     6: "Push"  // Saturday
 };
 const STRENGTH_EXERCISES = {
